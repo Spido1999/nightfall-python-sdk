@@ -1,7 +1,10 @@
-"""
-nightfall.api
-~~~~~~~~~~~~~
-    This module provides a class which abstracts the Nightfall REST API.
+"""nightfall/api.py — patched version
+Changes vs upstream:
+  - Add _DEFAULT_TIMEOUT = (5, 30) constant; pass to all HTTP calls
+  - Fix self.session.headers.update() instead of assignment (preserves requests defaults)
+  - Add timeout parameter to __init__
+  - Validate empty texts list in scan_text
+  - Guard validate_webhook against non-integer timestamp
 """
 from datetime import datetime, timedelta
 import hmac
@@ -43,7 +46,7 @@ class Nightfall:
         :param signing_secret: Your Nightfall signing secret used for webhook validation.
         :type signing_secret: str or None
         :param timeout: HTTP request timeout as (connect_seconds, read_seconds).
-            Defaults to (5, 30). Pass None to disable.
+            Defaults to (5, 30). Pass None to disable timeouts.
         :type timeout: tuple or None
         """
         if key:
@@ -63,8 +66,8 @@ class Nightfall:
         self.session = requests.Session()
         retries = Retry(total=5, allowed_methods=Retry.DEFAULT_ALLOWED_METHODS | {"PATCH", "POST"})
         self.session.mount("https://", HTTPAdapter(max_retries=retries))
-        # Use update() to preserve requests\'s default session headers
-        # (Accept-Encoding, Accept, Connection) rather than replacing them.
+        # Use update() to preserve requests default session headers
+        # (Accept-Encoding, Accept, Connection) rather than replacing the dict.
         self.session.headers.update({
             "Content-Type": "application/json",
             "User-Agent": "nightfall-python-sdk/1.4.1",
@@ -90,21 +93,16 @@ class Nightfall:
         :param texts: List of strings to scan.
         :type texts: List[str]
         :param policy_uuids: List of policy UUIDs to scan each text with.
-            These can be created in the Nightfall UI.
         :type policy_uuids: List[str] or None
         :param detection_rules: List of detection rules to scan each text with.
         :type detection_rules: List[DetectionRule] or None
         :param detection_rule_uuids: List of detection rule UUIDs to scan each text with.
-            These can be created in the Nightfall UI.
         :type detection_rule_uuids: List[str] or None
-        :param context_bytes: The number of bytes of context (leading and trailing)
-            to return with any matched findings.
+        :param context_bytes: The number of bytes of context to return with findings.
         :type context_bytes: int or None
-        :param default_redaction_config: The default redaction configuration to apply
-            to all detection rules, unless there is a more specific config within a detector.
+        :param default_redaction_config: Default redaction configuration.
         :type default_redaction_config: RedactionConfig or None
-        :param alert_config: Configures external destinations to fan out alerts to
-            in the event that findings are detected.
+        :param alert_config: External alert destinations.
         :type alert_config: AlertConfig or None
         :returns: list of findings, list of redacted input texts
         """
@@ -139,7 +137,6 @@ class Nightfall:
         _validate_response(response, 200)
 
         parsed_response = response.json()
-
         findings = [
             [Finding.from_dict(f) for f in item_findings]
             for item_findings in parsed_response["findings"]
@@ -175,17 +172,10 @@ class Nightfall:
         :param location: location of file to scan.
         :param webhook_url: webhook endpoint which will receive the results of the scan.
         :param policy_uuid: policy UUID.
-        :type policy_uuid: str or None
         :param detection_rules: list of detection rules.
-        :type detection_rules: List[DetectionRule] or None
         :param detection_rule_uuids: list of detection rule UUIDs.
-        :type detection_rule_uuids: List[str] or None
-        :param request_metadata: additional metadata that will be returned with the
-            webhook response.
-        :type request_metadata: str or None
-        :param alert_config: Configures external destinations to fan out alerts to
-            in the event that findings are detected.
-        :type alert_config: AlertConfig or None
+        :param request_metadata: additional metadata returned with the webhook response.
+        :param alert_config: external alert destinations.
         :returns: (scan_id, message)
         """
         if not policy_uuid and not detection_rule_uuids and not detection_rules:
@@ -293,13 +283,8 @@ class Nightfall:
         """Validate the integrity of webhook requests coming from Nightfall.
 
         :param request_signature: value of X-Nightfall-Signature header
-        :type request_signature: str
         :param request_timestamp: value of X-Nightfall-Timestamp header
-        :type request_timestamp: str
         :param request_data: request body as a unicode string
-            Flask: request.get_data(as_text=True)
-            Django: request.body.decode("utf-8")
-        :type request_data: str
         :returns: validation status boolean
         """
         try:
