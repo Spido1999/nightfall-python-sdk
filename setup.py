@@ -2,8 +2,7 @@ from setuptools import setup, find_packages
 
 
 def readme():
-    """Return long description from file."""
-    with open('README.md') as f:
+    with open("README.md") as f:
         return f.read()
 
 
@@ -27,12 +26,18 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Internet",
         "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
-    keywords='nightfall dlp api sdk',
-    packages=find_packages(exclude=['tests*']),
+    keywords="nightfall dlp api sdk",
+    packages=find_packages(exclude=["tests*"]),
+    package_data={"nightfall": ["py.typed"]},
     install_requires=[
-        'requests',
-        'urllib3'
+        "requests",
+        "urllib3",
     ],
-    python_requires='~=3.7'
+    python_requires=">=3.8",
 )
