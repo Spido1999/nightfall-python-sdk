@@ -1,9 +1,5 @@
-"""
-nightfall module
-~~~~~~~~~~~~~~~~
-    This module provides an SDK for Nightfall.
-    :copyright: (c) 2021 Nightfall
-    :license: MIT, see LICENSE for more details.
+"""nightfall/__init__.py — patched version
+Adds __version__ and cleans up __all__.
 """
 from .api import Nightfall
 from .alerts import SlackAlert, EmailAlert, WebhookAlert, AlertConfig
