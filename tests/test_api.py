@@ -534,3 +534,49 @@ def test_validate_webhook_incorrect_sig(nightfall):
     body = "hello world foo bar goodnight moon"
     expected = "not matching"
     assert not nightfall.validate_webhook(expected, timestamp, body)
+
+
+# ---------------------------------------------------------------------------
+# New tests: request timeout, empty-texts validation, session header check,
+#            invalid webhook timestamp, __version__ export
+# ---------------------------------------------------------------------------
+
+def test_scan_text_empty_texts_raises():
+    """scan_text with an empty list must raise NightfallUserError."""
+    nightfall = Nightfall("NF-NOT_REAL")
+    with pytest.raises(NightfallUserError):
+        nightfall.scan_text(texts=[], detection_rule_uuids=["some-uuid"])
+
+
+def test_nightfall_custom_timeout():
+    """The timeout attribute should reflect the constructor argument."""
+    nf = Nightfall("NF-NOT_REAL", timeout=(2, 10))
+    assert nf.timeout == (2, 10)
+
+
+def test_nightfall_default_timeout():
+    """Default timeout should be (5, 30)."""
+    nf = Nightfall("NF-NOT_REAL")
+    assert nf.timeout == (5, 30)
+
+
+def test_session_headers_preserved():
+    """update() must not clobber requests default headers like Accept-Encoding."""
+    nf = Nightfall("NF-FAKE-KEY")
+    assert "Accept-Encoding" in nf.session.headers
+    assert nf.session.headers["Authorization"] == "Bearer NF-FAKE-KEY"
+    assert nf.session.headers["Content-Type"] == "application/json"
+
+
+@freeze_time("2021-10-04T17:30:50Z")
+def test_validate_webhook_invalid_timestamp(nightfall):
+    """validate_webhook must return False (not raise) on a non-integer timestamp."""
+    nightfall.signing_secret = "super-secret-shhhh"
+    assert not nightfall.validate_webhook("any_sig", "not-a-number", "body")
+
+
+def test_version_exported():
+    """__version__ must be importable from the nightfall package."""
+    import nightfall as nf_pkg
+    assert hasattr(nf_pkg, "__version__")
+    assert nf_pkg.__version__ == "1.4.1"
